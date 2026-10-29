@@ -1,0 +1,638 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard bán hàng Deli Q3/2026</title>
+<link rel="icon" href="logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap&subset=vietnamese" rel="stylesheet">
+<style>
+.live { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.btn.primary { background: var(--deli); color: #fff; border-color: var(--deli); font-weight: 700; }
+.btn.primary[disabled] { opacity: .6; cursor: wait; }
+.stamp { font-size: 12px; color: var(--ink-2); }
+.banner { margin: 14px 0 0; padding: 10px 14px; border-radius: 6px; font-size: 13px; display: none; }
+.banner.show { display: block; }
+.banner.err { background: var(--tint); border-left: 3px solid var(--deli); color: var(--ink); }
+.banner.info { background: var(--surface); border: 1px solid var(--border); color: var(--ink-2); }
+main.loading .kpis, main.loading .grid { opacity: .55; transition: opacity .15s; }
+:root {
+  color-scheme: light;
+  --deli: #D5082E;
+  --deli-ink: #ffffff;
+  --page: #f6f6f4;
+  --surface: #ffffff;
+  --surface-2: #fafaf8;
+  --ink: #1b1b1a;
+  --ink-2: #52514e;
+  --muted: #898781;
+  --grid: #e8e7e1;
+  --axis: #c3c2b7;
+  --border: rgba(11,11,11,0.10);
+  --tint: #fdf0f2;
+  --gp: #52514e;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+  --ok: #006300;
+  --shadow: 0 1px 2px rgba(0,0,0,.04), 0 2px 8px rgba(0,0,0,.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --page: #0f0f0e; --surface: #1a1a19; --surface-2: #202020;
+    --ink: #f0efec; --ink-2: #c3c2b7; --muted: #8f8d86;
+    --grid: #2c2c2a; --axis: #45453f; --border: rgba(255,255,255,0.10);
+    --tint: #2a1418; --gp: #a9a79e; --deli: #e8314f;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --ok: #0ca30c;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--page); color: var(--ink); }
+body { font-family: 'Roboto', system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 14px; line-height: 1.45; }
+.wrap { max-width: 1320px; margin: 0 auto; padding: 0 20px 40px; }
+header.top { background: var(--surface); border-bottom: 3px solid var(--deli); }
+header.top .wrap { display: flex; align-items: center; gap: 16px; padding-top: 14px; padding-bottom: 14px; }
+header.top img { width: 52px; height: 52px; border-radius: 6px; flex: none; }
+header.top h1 { margin: 0; font-size: 22px; font-weight: 700; color: var(--deli); letter-spacing: .01em; }
+header.top .sub { color: var(--ink-2); font-size: 13px; margin-top: 2px; }
+.chip { display: inline-block; background: var(--deli); color: var(--deli-ink); font-weight: 700; font-size: 12px; padding: 2px 10px; border-radius: 999px; margin-right: 6px; vertical-align: 1px; }
+.src { margin-left: auto; max-width: 430px; font-size: 12px; color: var(--ink-2); border-left: 2px solid var(--deli); padding-left: 10px; }
+
+.filters { position: sticky; top: 0; z-index: 20; background: var(--page); padding: 12px 0; border-bottom: 1px solid var(--border); }
+.filters .row { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-end; }
+.f { display: flex; flex-direction: column; gap: 3px; }
+.f label { font-size: 11px; font-weight: 700; color: var(--ink-2); text-transform: uppercase; letter-spacing: .04em; }
+.f select, .f input { font: inherit; font-size: 13px; color: var(--ink); background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; min-width: 150px; height: 34px; }
+.f input[type=date] { min-width: 140px; }
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; height: 34px; }
+.seg button { font: inherit; font-size: 13px; border: 0; background: var(--surface); color: var(--ink); padding: 0 12px; cursor: pointer; border-right: 1px solid var(--border); }
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed=true] { background: var(--deli); color: #fff; font-weight: 700; }
+.btn { font: inherit; font-size: 13px; height: 34px; padding: 0 14px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); cursor: pointer; }
+.btn:hover, .seg button:hover { filter: brightness(0.96); }
+.active-note { font-size: 12px; color: var(--ink-2); margin-top: 8px; }
+.active-note b { color: var(--ink); }
+
+.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 18px 0; }
+.kpi { background: var(--surface); border: 1px solid var(--border); border-top: 3px solid var(--deli); border-radius: 8px; padding: 14px 16px; box-shadow: var(--shadow); }
+.kpi .l { font-size: 12px; font-weight: 700; color: var(--ink-2); text-transform: uppercase; letter-spacing: .03em; }
+.kpi .v { font-size: 30px; font-weight: 700; margin: 4px 0 2px; line-height: 1.15; }
+.kpi .v small { font-size: 15px; font-weight: 500; color: var(--ink-2); }
+.kpi .s { font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.kpi.empty .v { color: var(--muted); }
+
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px 12px; box-shadow: var(--shadow); min-width: 0; }
+.card.full { grid-column: 1 / -1; }
+.card h2 { font-size: 15px; margin: 0; font-weight: 700; }
+.card .cap { font-size: 12px; color: var(--ink-2); margin: 2px 0 8px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--ink-2); margin: 0 0 4px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.chart { position: relative; width: 100%; }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.chart text { font-family: inherit; }
+.t-axis { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.t-lab { fill: var(--ink); font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.t-cat { fill: var(--ink-2); font-size: 12px; }
+.t-in { font-size: 11px; font-weight: 700; }
+.gridline { stroke: var(--grid); stroke-width: 1; }
+.baseline { stroke: var(--axis); stroke-width: 1; }
+.mark { cursor: pointer; outline: none; }
+.mark:hover, .mark:focus { opacity: .82; }
+.empty-state { display: flex; align-items: center; justify-content: center; min-height: 180px; color: var(--muted); font-size: 13px; border: 1px dashed var(--border); border-radius: 6px; background: var(--surface-2); text-align: center; padding: 16px; }
+details.tv { margin-top: 8px; font-size: 12px; }
+details.tv summary { cursor: pointer; color: var(--ink-2); }
+
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+th, td { padding: 6px 8px; border-bottom: 1px solid var(--grid); text-align: left; white-space: nowrap; }
+th { font-size: 11.5px; color: var(--ink-2); font-weight: 700; background: var(--surface-2); position: sticky; top: 0; }
+td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+tfoot td { font-weight: 700; border-top: 2px solid var(--axis); border-bottom: 0; background: var(--surface-2); }
+th.sort { cursor: pointer; user-select: none; }
+th.sort:hover { color: var(--ink); }
+.tbl-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 6px; }
+.tbl-tools { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin: 8px 0 10px; }
+.pager { display: flex; gap: 8px; align-items: center; justify-content: flex-end; margin-top: 8px; font-size: 12px; color: var(--ink-2); }
+.pager button { font: inherit; font-size: 12px; padding: 4px 10px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); border-radius: 5px; cursor: pointer; }
+.pager button:disabled { opacity: .4; cursor: default; }
+.badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--border); }
+.badge.y { color: var(--ok); }
+.badge.n { color: var(--deli); }
+.check { font-size: 12px; margin-left: auto; }
+.check.ok { color: var(--ok); }
+.check.bad { color: var(--deli); font-weight: 700; }
+
+.notes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 14px; }
+.notes .card h2 { color: var(--deli); font-size: 14px; }
+.notes ul, .notes ol { margin: 6px 0 0; padding-left: 18px; font-size: 12.5px; color: var(--ink-2); }
+.notes li { margin-bottom: 4px; }
+footer.foot { margin-top: 18px; font-size: 11.5px; color: var(--muted); text-align: center; }
+
+#tip { position: fixed; z-index: 50; pointer-events: none; background: var(--surface); color: var(--ink); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.14); opacity: 0; transition: opacity .08s; max-width: 280px; font-variant-numeric: tabular-nums; }
+#tip b { display: block; margin-bottom: 3px; }
+#tip .r { display: flex; justify-content: space-between; gap: 14px; }
+#tip .r span:first-child { color: var(--ink-2); }
+
+@media (max-width: 1000px) {
+  .kpis { grid-template-columns: repeat(2, 1fr); }
+  .grid, .notes { grid-template-columns: minmax(0, 1fr); }
+  .src { display: none; }
+  header.top .wrap { flex-wrap: wrap; }
+  header.top h1 { font-size: 19px; }
+}
+@media (max-width: 520px) {
+  .wrap { padding: 0 12px 30px; }
+  .kpis { grid-template-columns: minmax(0, 1fr); }
+  .seg button { padding: 0 9px; }
+  header.top .wrap > div { flex: 1 1 200px; min-width: 0; }
+  .kpi .v { font-size: 26px; }
+  .f select, .f input { min-width: 0; width: 100%; }
+  .f { flex: 1 1 140px; }
+}
+@media print {
+  .filters { position: static; }
+  .tbl-tools, .pager { display: none; }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <img src="logo.png" alt="Logo Deli">
+    <div>
+      <h1>Dashboard quản trị bán hàng</h1>
+      <div class="sub"><span class="chip">Q3/2026</span>Kỳ dữ liệu: 01/07/2026 – 30/09/2026 · Dành cho Trưởng phòng và Ban Giám đốc</div>
+    </div>
+    <div class="src"><b>Nguồn dữ liệu:</b> Google Sheet Demo9, tab Du_lieu_sach (dữ liệu đã làm sạch từ Deli_Claude_Practice_Sale.xlsx). Đọc trực tiếp mỗi lần mở trang hoặc nhấn Làm mới. Dữ liệu giả lập phục vụ đào tạo. Số tiền tính bằng VND.</div>
+  </div>
+</header>
+
+<div class="filters">
+  <div class="wrap">
+    <div class="row" role="group" aria-label="Bộ lọc">
+      <div class="f"><label>Tháng</label>
+        <div class="seg" id="monthSeg">
+          <button type="button" data-m="all" aria-pressed="true">Cả kỳ</button>
+          <button type="button" data-m="2026-07" aria-pressed="false">T7</button>
+          <button type="button" data-m="2026-08" aria-pressed="false">T8</button>
+          <button type="button" data-m="2026-09" aria-pressed="false">T9</button>
+        </div>
+      </div>
+      <div class="f"><label for="fFrom">Từ ngày</label><input type="date" id="fFrom" min="2026-07-01" max="2026-09-30" value="2026-07-01"></div>
+      <div class="f"><label for="fTo">Đến ngày</label><input type="date" id="fTo" min="2026-07-01" max="2026-09-30" value="2026-09-30"></div>
+      <div class="f"><label for="fRegion">Khu vực</label><select id="fRegion"></select></div>
+      <div class="f"><label for="fDept">Phòng kinh doanh</label><select id="fDept"></select></div>
+      <div class="f"><label for="fGroup">Nhóm sản phẩm</label><select id="fGroup"></select></div>
+      <button class="btn" id="btnReset" type="button">Xóa bộ lọc</button>
+      <div class="live" style="margin-left:auto">
+        <span class="stamp" id="stamp" aria-live="polite">Đang tải dữ liệu…</span>
+        <button class="btn primary" id="btnRefresh" type="button">↻ Làm mới dữ liệu</button>
+      </div>
+    </div>
+    <div class="active-note" id="activeNote"></div>
+  </div>
+</div>
+
+<main class="wrap">
+  <div id="banner" class="banner" role="status"></div>
+  <section class="kpis" aria-label="Chỉ số chính">
+    <div class="kpi" id="kRev"><div class="l">Tổng doanh thu hợp lệ</div><div class="v"></div><div class="s"></div></div>
+    <div class="kpi" id="kGp"><div class="l">Lợi nhuận gộp</div><div class="v"></div><div class="s"></div></div>
+    <div class="kpi" id="kMg"><div class="l">Biên lợi nhuận gộp</div><div class="v"></div><div class="s"></div></div>
+    <div class="kpi" id="kN"><div class="l">Số đơn hoàn thành hợp lệ</div><div class="v"></div><div class="s"></div></div>
+  </section>
+
+  <section class="grid">
+    <div class="card">
+      <h2>Doanh thu hợp lệ theo tháng</h2>
+      <div class="cap">Đơn vị: triệu VND. Di chuột vào cột để xem lợi nhuận gộp, biên và số đơn.</div>
+      <div class="chart" id="cMonth"></div>
+      <details class="tv"><summary>Xem dạng bảng</summary><div id="tMonth"></div></details>
+    </div>
+    <div class="card">
+      <h2>So sánh theo phòng kinh doanh</h2>
+      <div class="cap">Doanh thu hợp lệ và lợi nhuận gộp, triệu VND. Lưu ý: trong dữ liệu, Phòng kinh doanh trùng 100% với Nhóm sản phẩm.</div>
+      <div class="legend"><span><i style="background:var(--deli)"></i>Doanh thu hợp lệ</span><span><i style="background:var(--gp)"></i>Lợi nhuận gộp</span></div>
+      <div class="chart" id="cDept"></div>
+      <details class="tv"><summary>Xem dạng bảng</summary><div id="tDept"></div></details>
+    </div>
+    <div class="card">
+      <h2>Cơ cấu doanh thu theo nhóm sản phẩm</h2>
+      <div class="cap">Tỷ trọng doanh thu hợp lệ (%), cả kỳ đang lọc và từng tháng.</div>
+      <div class="legend" id="lMix"></div>
+      <div class="chart" id="cMix"></div>
+      <details class="tv"><summary>Xem dạng bảng</summary><div id="tMix"></div></details>
+    </div>
+    <div class="card">
+      <h2>Đơn hàng không tính vào KPI</h2>
+      <div class="cap">Theo bộ lọc hiện tại. Doanh thu ghi trong file của các đơn này không được cộng vào KPI.</div>
+      <div id="tExcl"></div>
+    </div>
+
+    <div class="card full">
+      <h2>Bảng chi tiết đơn hàng</h2>
+      <div class="cap">Tra cứu từng đơn theo bộ lọc. Tổng ở cuối bảng (chế độ "Đơn hợp lệ") phải bằng KPI phía trên.</div>
+      <div class="tbl-tools">
+        <div class="f"><label for="fMode">Hiển thị</label>
+          <select id="fMode"><option value="valid">Đơn hợp lệ</option><option value="excl">Đơn bị loại</option><option value="all">Tất cả đơn</option></select></div>
+        <div class="f"><label for="fSearch">Tìm mã đơn / sản phẩm</label><input id="fSearch" type="search" placeholder="VD: DH00214, Webcam"></div>
+        <span class="check" id="chk"></span>
+      </div>
+      <div class="tbl-wrap"><table id="tbl">
+        <thead><tr>
+          <th class="sort" data-k="date">Ngày</th><th class="sort" data-k="id">Mã đơn</th><th class="sort" data-k="dept">Phòng KD</th><th class="sort" data-k="region">Khu vực</th><th class="sort" data-k="group">Nhóm SP</th><th class="sort" data-k="product">Sản phẩm</th>
+          <th class="sort n" data-k="qty">SL</th><th class="sort n" data-k="price">Đơn giá (VND)</th><th class="sort n" data-k="disc">CK</th><th class="sort n" data-k="rev">Doanh thu (VND)</th><th class="sort n" data-k="cost">Giá vốn (VND)</th><th class="sort n" data-k="gp">LN gộp (VND)</th><th class="sort" data-k="status">Trạng thái</th><th>Tính KPI</th>
+        </tr></thead>
+        <tbody></tbody><tfoot></tfoot>
+      </table></div>
+      <div class="pager"><span id="pgInfo"></span><button id="pgPrev" type="button">‹ Trước</button><button id="pgNext" type="button">Sau ›</button></div>
+    </div>
+  </section>
+
+  <section class="notes">
+    <div class="card">
+      <h2>Quy tắc loại trừ đơn hàng</h2>
+      <p class="cap" style="margin-top:6px">Một đơn được tính vào KPI khi thỏa đồng thời:</p>
+      <ol>
+        <li>Trạng thái sau chuẩn hóa là "Hoàn thành" ("Hoàn tất" được chuẩn hóa thành "Hoàn thành").</li>
+        <li>Mã đơn xuất hiện lần đầu (dòng trùng 100% bị loại).</li>
+        <li>Có đủ Số lượng, Đơn giá, Chiết khấu.</li>
+        <li>Doanh thu khớp công thức Đơn giá × Số lượng × (1 − Chiết khấu), sai lệch tối đa 1 VND.</li>
+      </ol>
+      <p class="cap">Đơn "Đang xử lý" và "Đã hủy" không tính vào KPI.</p>
+    </div>
+    <div class="card">
+      <h2>Dữ liệu thiếu và cần xác minh</h2>
+      <p class="cap" style="margin-top:6px">Tự cập nhật theo dữ liệu đang có trong sheet. Không suy đoán giá trị thiếu.</p>
+      <ul id="missingList"><li>Đang tải…</li></ul>
+    </div>
+    <div class="card">
+      <h2>Giới hạn phân tích</h2>
+      <ul>
+        <li>Chỉ có 3 tháng, không có kỳ trước và không có chỉ tiêu kế hoạch.</li>
+        <li>Phòng kinh doanh trùng 100% với Nhóm sản phẩm; chưa phân tích được theo phòng ban thực.</li>
+        <li>Lợi nhuận gộp = Doanh thu − Giá vốn, chưa trừ chi phí bán hàng, vận chuyển.</li>
+        <li>Một số ít đơn lớn chi phối kết quả; so sánh theo tuần hoặc theo nhóm nhỏ cần thận trọng.</li>
+        <li>Dữ liệu giả lập phục vụ đào tạo; không dùng cho quyết định kinh doanh thật.</li>
+      </ul>
+    </div>
+  </section>
+  <footer class="foot">Deli Việt Nam · Dữ liệu đọc trực tiếp từ Google Sheet Demo9 · Không hiển thị mã nhân viên và mã khách hàng.</footer>
+</main>
+<div id="tip" role="tooltip"></div>
+
+<script>
+// Dữ liệu lấy từ /api/data: [ngày, mã đơn, phòng KD, khu vực, nhóm SP, sản phẩm, SL, đơn giá, CK, doanh thu, giá vốn, trạng thái, cờ lỗi]
+
+const MONTHS = ['2026-07', '2026-08', '2026-09'];
+const MONTH_LABEL = { '2026-07': 'T7/2026', '2026-08': 'T8/2026', '2026-09': 'T9/2026' };
+const GROUPS = ['Tools & Equipment', 'Technology', 'Office Supplies', 'Stationery'];
+const GROUP_COLOR = { 'Tools & Equipment': 'var(--s1)', 'Technology': 'var(--s2)', 'Office Supplies': 'var(--s3)', 'Stationery': 'var(--s4)' };
+const GROUP_INK = { 'Tools & Equipment': '#fff', 'Technology': '#fff', 'Office Supplies': '#fff', 'Stationery': '#0b0b0b' };
+const DONE = 'Hoàn thành';
+
+// ---------- dữ liệu + quy tắc hợp lệ ----------
+let ROWS = [];
+function buildRows(raw) {
+ const seen = new Set();
+ return raw.map(a => {
+  const r = { date: a[0], id: a[1], dept: a[2], region: a[3], group: a[4], product: a[5], qty: a[6], price: a[7], disc: a[8], rev: a[9] || 0, cost: a[10] || 0, status: a[11] || '', flag: a[12] || '' };
+  if (r.status === 'Hoàn tất') r.status = DONE;
+  r.month = r.date.slice(0, 7);
+  r.gp = r.rev - r.cost;
+  r.dup = seen.has(r.id); seen.add(r.id);
+  r.expected = (r.qty != null && r.price != null && r.disc != null) ? r.price * r.qty * (1 - r.disc) : null;
+  r.reason = !r.status ? 'Thiếu trạng thái'
+    : r.status !== DONE ? 'Trạng thái: ' + r.status
+    : r.dup ? 'Dòng trùng mã đơn'
+    : r.expected == null ? 'Thiếu dữ liệu để tính DT'
+    : Math.abs(r.rev - r.expected) > 1 ? 'Doanh thu sai công thức'
+    : '';
+  r.valid = r.reason === '';
+  return r;
+ });
+}
+
+// ---------- định dạng ----------
+const nf0 = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 });
+const nf1 = new Intl.NumberFormat('vi-VN', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const vnd = n => nf0.format(Math.round(n));
+const trieu = n => nf1.format(n / 1e6);
+const pct = x => nf1.format(x * 100) + '%';
+const fmtDate = d => d.slice(8, 10) + '/' + d.slice(5, 7) + '/' + d.slice(0, 4);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// ---------- trạng thái bộ lọc ----------
+const state = { from: '2026-07-01', to: '2026-09-30', region: '', dept: '', group: '', mode: 'valid', q: '', sortK: 'date', sortDir: 1, page: 0 };
+const PAGE = 20;
+const $ = id => document.getElementById(id);
+
+function fillSelect(el, label, values) {
+  el.innerHTML = '<option value="">' + label + '</option>' + values.map(v => '<option>' + esc(v) + '</option>').join('');
+}
+fillSelect($('fRegion'), 'Tất cả khu vực', ['Miền Bắc', 'Miền Trung', 'Miền Nam']);
+fillSelect($('fGroup'), 'Tất cả nhóm', GROUPS);
+
+function inScope(r) {
+  return r.date >= state.from && r.date <= state.to
+    && (!state.region || r.region === state.region)
+    && (!state.dept || r.dept === state.dept)
+    && (!state.group || r.group === state.group);
+}
+
+function agg(rows) {
+  const rev = rows.reduce((s, r) => s + r.rev, 0);
+  const cost = rows.reduce((s, r) => s + r.cost, 0);
+  return { n: rows.length, rev, cost, gp: rev - cost, margin: rev ? (rev - cost) / rev : null };
+}
+
+function compute() {
+  const scope = ROWS.filter(inScope);
+  const valid = scope.filter(r => r.valid);
+  const months = MONTHS.filter(m => m + '-31' >= state.from && m + '-01' <= state.to);
+  return {
+    scope, valid, total: agg(valid),
+    doneAll: scope.filter(r => r.status === DONE && !r.dup).length,
+    byMonth: months.map(m => ({ key: m, ...agg(valid.filter(r => r.month === m)) })),
+    byDept: [...new Set(ROWS.map(r => r.dept))].map(d => ({ key: d, ...agg(valid.filter(r => r.dept === d)) })).filter(x => x.n > 0).sort((a, b) => b.rev - a.rev),
+    mixRows: [{ key: 'Cả kỳ lọc', rows: valid }].concat(months.map(m => ({ key: MONTH_LABEL[m], rows: valid.filter(r => r.month === m) }))),
+    excl: Object.entries(scope.filter(r => !r.valid).reduce((o, r) => { (o[r.reason] = o[r.reason] || []).push(r); return o; }, {}))
+      .map(([k, rs]) => ({ key: k, n: rs.length, rev: rs.reduce((s, r) => s + r.rev, 0) })).sort((a, b) => b.n - a.n),
+  };
+}
+
+// ---------- tooltip ----------
+const tip = $('tip');
+function showTip(e, html) {
+  tip.innerHTML = html; tip.style.opacity = 1;
+  const pt = e.touches ? e.touches[0] : e;
+  let x, y;
+  if (pt && pt.clientX != null) { x = pt.clientX + 14; y = pt.clientY + 14; }
+  else { const b = e.target.getBoundingClientRect(); x = b.right + 8; y = b.top; }
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  if (x + w > innerWidth - 8) x = Math.max(8, x - w - 28);
+  if (y + h > innerHeight - 8) y = Math.max(8, y - h - 28);
+  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+}
+function hideTip() { tip.style.opacity = 0; }
+function bindTips(root, getHtml) {
+  root.querySelectorAll('.mark').forEach(m => {
+    const h = e => showTip(e, getHtml(m.dataset));
+    m.addEventListener('mousemove', h); m.addEventListener('focus', h);
+    m.addEventListener('mouseleave', hideTip); m.addEventListener('blur', hideTip);
+  });
+}
+const tipRow = (a, b) => '<div class="r"><span>' + a + '</span><span>' + b + '</span></div>';
+
+// ---------- biểu đồ ----------
+function niceMax(v) {
+  if (v <= 0) return 1;
+  const p = Math.pow(10, Math.floor(Math.log10(v))), f = v / p;
+  return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p;
+}
+const emptyHtml = msg => '<div class="empty-state">' + (msg || 'Không có dữ liệu phù hợp với bộ lọc hiện tại.') + '</div>';
+function barPath(x, y, w, h, r, dir) {
+  // cột bo góc 4px ở đầu dữ liệu, phẳng ở đường gốc
+  r = Math.min(r, w / 2, h);
+  if (h <= 0 || w <= 0) return '';
+  if (dir === 'up') return `M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}Z`;
+  r = Math.min(4, h / 2, w);
+  return `M${x},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h - r}Q${x + w},${y + h} ${x + w - r},${y + h}H${x}Z`;
+}
+
+function drawMonth(d) {
+  const el = $('cMonth');
+  if (!d.byMonth.length || d.total.n === 0) { el.innerHTML = emptyHtml(); return; }
+  const W = Math.max(320, el.clientWidth || 560), H = 260, m = { t: 22, r: 10, b: 28, l: 46 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const max = niceMax(Math.max(...d.byMonth.map(x => x.rev)) / 1e6);
+  const ticks = 5, bw = Math.min(90, iw / d.byMonth.length * 0.5);
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Doanh thu hợp lệ theo tháng">`;
+  for (let i = 0; i <= ticks; i++) {
+    const v = max / ticks * i, y = m.t + ih - ih * v / max;
+    s += `<line class="${i ? 'gridline' : 'baseline'}" x1="${m.l}" x2="${W - m.r}" y1="${y}" y2="${y}"/><text class="t-axis" x="${m.l - 6}" y="${y + 4}" text-anchor="end">${nf0.format(v)}</text>`;
+  }
+  d.byMonth.forEach((x, i) => {
+    const cx = m.l + iw / d.byMonth.length * (i + 0.5), h = ih * (x.rev / 1e6) / max, y = m.t + ih - h;
+    s += `<path class="mark" tabindex="0" fill="var(--deli)" d="${barPath(cx - bw / 2, y, bw, h, 4, 'up')}" data-k="${x.key}"/>`;
+    s += `<text class="t-lab" x="${cx}" y="${y - 6}" text-anchor="middle">${x.n ? trieu(x.rev) : 'Không có đơn'}</text>`;
+    s += `<text class="t-cat" x="${cx}" y="${H - 8}" text-anchor="middle">${MONTH_LABEL[x.key]}</text>`;
+  });
+  el.innerHTML = s + '</svg>';
+  bindTips(el, ds => { const x = d.byMonth.find(z => z.key === ds.k); return '<b>' + MONTH_LABEL[x.key] + '</b>' + tipRow('Doanh thu hợp lệ', vnd(x.rev) + ' VND') + tipRow('Lợi nhuận gộp', vnd(x.gp) + ' VND') + tipRow('Biên LN gộp', x.margin == null ? '—' : pct(x.margin)) + tipRow('Số đơn hợp lệ', nf0.format(x.n)); });
+}
+
+function drawDept(d) {
+  const el = $('cDept');
+  if (!d.byDept.length) { el.innerHTML = emptyHtml(); return; }
+  const W = Math.max(320, el.clientWidth || 560), rowH = 46, m = { t: 6, r: 70, b: 24, l: 128 };
+  const H = m.t + m.b + rowH * d.byDept.length, iw = W - m.l - m.r;
+  const max = niceMax(Math.max(...d.byDept.map(x => x.rev)) / 1e6), bh = 14, gap = 2;
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="So sánh doanh thu và lợi nhuận gộp theo phòng kinh doanh">`;
+  for (let i = 0; i <= 4; i++) {
+    const v = max / 4 * i, x = m.l + iw * v / max;
+    s += `<line class="${i ? 'gridline' : 'baseline'}" x1="${x}" x2="${x}" y1="${m.t}" y2="${H - m.b}"/><text class="t-axis" x="${x}" y="${H - 6}" text-anchor="middle">${nf0.format(v)}</text>`;
+  }
+  d.byDept.forEach((x, i) => {
+    const y0 = m.t + rowH * i + (rowH - bh * 2 - gap) / 2;
+    const w1 = iw * (x.rev / 1e6) / max, w2 = iw * (Math.max(0, x.gp) / 1e6) / max;
+    s += `<text class="t-cat" x="${m.l - 8}" y="${y0 + bh + 4}" text-anchor="end">${esc(x.key)}</text>`;
+    s += `<path class="mark" tabindex="0" fill="var(--deli)" d="${barPath(m.l, y0, w1, bh)}" data-k="${esc(x.key)}"/>`;
+    s += `<text class="t-lab" x="${m.l + w1 + 6}" y="${y0 + 11}">${trieu(x.rev)}</text>`;
+    s += `<path class="mark" tabindex="0" fill="var(--gp)" d="${barPath(m.l, y0 + bh + gap, w2, bh)}" data-k="${esc(x.key)}"/>`;
+    s += `<text class="t-axis" x="${m.l + w2 + 6}" y="${y0 + bh + gap + 11}">${trieu(x.gp)} · ${pct(x.margin)}</text>`;
+  });
+  el.innerHTML = s + '</svg>';
+  bindTips(el, ds => { const x = d.byDept.find(z => z.key === ds.k); return '<b>' + esc(x.key) + '</b>' + tipRow('Doanh thu hợp lệ', vnd(x.rev) + ' VND') + tipRow('Lợi nhuận gộp', vnd(x.gp) + ' VND') + tipRow('Biên LN gộp', pct(x.margin)) + tipRow('Số đơn hợp lệ', nf0.format(x.n)) + tipRow('Tỷ trọng doanh thu', pct(x.rev / d.total.rev)); });
+}
+
+function drawMix(d) {
+  const el = $('cMix');
+  $('lMix').innerHTML = GROUPS.map(g => `<span><i style="background:${GROUP_COLOR[g]}"></i>${esc(g)}</span>`).join('');
+  const rows = d.mixRows.filter(x => x.rows.length);
+  if (!rows.length) { el.innerHTML = emptyHtml(); return; }
+  const W = Math.max(320, el.clientWidth || 560), rowH = 40, m = { t: 4, r: 8, b: 20, l: 78 };
+  const H = m.t + m.b + rowH * rows.length, iw = W - m.l - m.r, bh = 24;
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Cơ cấu doanh thu theo nhóm sản phẩm">`;
+  [0, 25, 50, 75, 100].forEach(v => { const x = m.l + iw * v / 100; s += `<line class="${v ? 'gridline' : 'baseline'}" x1="${x}" x2="${x}" y1="${m.t}" y2="${H - m.b}"/><text class="t-axis" x="${x}" y="${H - 4}" text-anchor="middle">${v}%</text>`; });
+  rows.forEach((row, i) => {
+    const tot = row.rows.reduce((a, r) => a + r.rev, 0), y = m.t + rowH * i + (rowH - bh) / 2;
+    s += `<text class="t-cat" x="${m.l - 8}" y="${y + bh / 2 + 4}" text-anchor="end"${i === 0 ? ' font-weight="700"' : ''}>${esc(row.key)}</text>`;
+    let x = m.l;
+    GROUPS.forEach(g => {
+      const v = row.rows.filter(r => r.group === g).reduce((a, r) => a + r.rev, 0);
+      if (!v) return;
+      const w = iw * v / tot, share = v / tot;
+      s += `<rect class="mark" tabindex="0" x="${x}" y="${y}" width="${Math.max(0, w - 2)}" height="${bh}" fill="${GROUP_COLOR[g]}" data-row="${i}" data-g="${esc(g)}"/>`;
+      if (w > 46) s += `<text class="t-in" x="${x + (w - 2) / 2}" y="${y + bh / 2 + 4}" text-anchor="middle" fill="${GROUP_INK[g]}" pointer-events="none">${nf0.format(share * 100)}%</text>`;
+      x += w;
+    });
+  });
+  el.innerHTML = s + '</svg>';
+  bindTips(el, ds => {
+    const row = rows[+ds.row], g = ds.g, rs = row.rows.filter(r => r.group === g), a = agg(rs), tot = row.rows.reduce((s, r) => s + r.rev, 0);
+    return '<b>' + esc(g) + ' · ' + esc(row.key) + '</b>' + tipRow('Doanh thu hợp lệ', vnd(a.rev) + ' VND') + tipRow('Tỷ trọng', pct(a.rev / tot)) + tipRow('Biên LN gộp', pct(a.margin)) + tipRow('Số đơn', nf0.format(a.n));
+  });
+}
+
+// ---------- bảng dạng dữ liệu cho biểu đồ ----------
+function aggTable(head, rows) {
+  if (!rows.length) return emptyHtml();
+  return '<div class="tbl-wrap"><table><thead><tr>' + head.map((h, i) => `<th${i ? ' class="n"' : ''}>${h}</th>`).join('') + '</tr></thead><tbody>' +
+    rows.map(r => '<tr>' + r.map((c, i) => `<td${i ? ' class="n"' : ''}>${c}</td>`).join('') + '</tr>').join('') + '</tbody></table></div>';
+}
+function drawTables(d) {
+  $('tMonth').innerHTML = aggTable(['Tháng', 'Doanh thu (VND)', 'LN gộp (VND)', 'Biên', 'Số đơn'], d.byMonth.map(x => [MONTH_LABEL[x.key], vnd(x.rev), vnd(x.gp), x.margin == null ? '—' : pct(x.margin), nf0.format(x.n)]));
+  $('tDept').innerHTML = aggTable(['Phòng KD', 'Doanh thu (VND)', 'LN gộp (VND)', 'Biên', 'Số đơn'], d.byDept.map(x => [esc(x.key), vnd(x.rev), vnd(x.gp), pct(x.margin), nf0.format(x.n)]));
+  const mixRows = [];
+  d.mixRows.filter(x => x.rows.length).forEach(row => {
+    const tot = row.rows.reduce((a, r) => a + r.rev, 0);
+    GROUPS.forEach(g => { const v = row.rows.filter(r => r.group === g).reduce((a, r) => a + r.rev, 0); if (v) mixRows.push([esc(row.key) + ' · ' + esc(g), vnd(v), pct(v / tot)]); });
+  });
+  $('tMix').innerHTML = aggTable(['Kỳ · Nhóm SP', 'Doanh thu (VND)', 'Tỷ trọng'], mixRows);
+  const ex = d.excl;
+  $('tExcl').innerHTML = ex.length
+    ? aggTable(['Lý do', 'Số đơn', 'Doanh thu ghi trong file (VND)'], ex.map(x => [esc(x.key), nf0.format(x.n), vnd(x.rev)]))
+      + `<p class="cap" style="margin-top:8px">Tổng ${nf0.format(ex.reduce((a, x) => a + x.n, 0))} dòng bị loại / ${nf0.format(d.scope.length)} dòng trong phạm vi lọc.</p>`
+    : emptyHtml(d.scope.length ? 'Không có đơn bị loại trong phạm vi lọc.' : undefined);
+}
+
+// ---------- KPI ----------
+function drawKpis(d) {
+  const t = d.total, empty = t.n === 0;
+  const set = (id, v, s) => { const el = $(id); el.classList.toggle('empty', empty); el.querySelector('.v').innerHTML = v; el.querySelector('.s').innerHTML = s; };
+  if (empty) {
+    ['kRev', 'kGp', 'kMg', 'kN'].forEach(id => set(id, '—', 'Không có dữ liệu phù hợp với bộ lọc'));
+    return;
+  }
+  set('kRev', trieu(t.rev) + ' <small>triệu VND</small>', vnd(t.rev) + ' VND');
+  set('kGp', trieu(t.gp) + ' <small>triệu VND</small>', vnd(t.gp) + ' VND = Doanh thu − Giá vốn');
+  set('kMg', pct(t.margin), 'Lợi nhuận gộp ÷ Doanh thu hợp lệ');
+  set('kN', nf0.format(t.n) + ' <small>đơn</small>', 'Trên ' + nf0.format(d.doneAll) + ' đơn có trạng thái Hoàn thành');
+}
+
+// ---------- bảng chi tiết ----------
+function drawDetail(d) {
+  let rows = state.mode === 'valid' ? d.valid : state.mode === 'excl' ? d.scope.filter(r => !r.valid) : d.scope;
+  const q = state.q.trim().toLowerCase();
+  if (q) rows = rows.filter(r => r.id.toLowerCase().includes(q) || r.product.toLowerCase().includes(q));
+  const k = state.sortK, dir = state.sortDir;
+  rows = rows.slice().sort((a, b) => { const x = a[k], y = b[k]; return (x == null) - (y == null) || (x < y ? -dir : x > y ? dir : 0); });
+  const pages = Math.max(1, Math.ceil(rows.length / PAGE));
+  state.page = Math.min(state.page, pages - 1);
+  const view = rows.slice(state.page * PAGE, state.page * PAGE + PAGE);
+  const num = v => v == null ? '<span style="color:var(--deli)">Thiếu</span>' : vnd(v);
+  $('tbl').tBodies[0].innerHTML = view.length ? view.map(r => `<tr>
+    <td>${fmtDate(r.date)}</td><td>${esc(r.id)}</td><td>${esc(r.dept)}</td><td>${esc(r.region)}</td><td>${esc(r.group)}</td><td>${esc(r.product)}</td>
+    <td class="n">${num(r.qty)}</td><td class="n">${num(r.price)}</td><td class="n">${r.disc == null ? 'Thiếu' : nf0.format(r.disc * 100) + '%'}</td>
+    <td class="n">${vnd(r.rev)}</td><td class="n">${vnd(r.cost)}</td><td class="n">${vnd(r.gp)}</td><td>${r.status ? esc(r.status) : '<span style="color:var(--deli)">Thiếu</span>'}</td>
+    <td>${r.valid ? '<span class="badge y">Có</span>' : '<span class="badge n" title="' + esc(r.reason) + '">Không: ' + esc(r.reason) + '</span>'}</td></tr>`).join('')
+    : `<tr><td colspan="14">${emptyHtml(q ? 'Không tìm thấy đơn phù hợp.' : undefined)}</td></tr>`;
+  const a = agg(rows);
+  $('tbl').tFoot.innerHTML = rows.length ? `<tr><td colspan="9">Tổng ${nf0.format(rows.length)} dòng (toàn bộ kết quả, không chỉ trang này)</td><td class="n">${vnd(a.rev)}</td><td class="n">${vnd(a.cost)}</td><td class="n">${vnd(a.gp)}</td><td colspan="2"></td></tr>` : '';
+  $('pgInfo').textContent = rows.length ? `Trang ${state.page + 1}/${pages} · ${nf0.format(rows.length)} dòng` : '';
+  $('pgPrev').disabled = state.page === 0; $('pgNext').disabled = state.page >= pages - 1;
+  const chk = $('chk');
+  if (state.mode === 'valid' && !q && d.total.n > 0) {
+    const ok = rows.length === d.total.n && Math.round(a.rev) === Math.round(d.total.rev) && Math.round(a.gp) === Math.round(d.total.gp);
+    chk.className = 'check ' + (ok ? 'ok' : 'bad');
+    chk.textContent = ok ? '✓ Tổng bảng khớp KPI' : '✗ Tổng bảng KHÔNG khớp KPI';
+  } else { chk.className = 'check'; chk.textContent = ''; }
+  document.querySelectorAll('#tbl th.sort').forEach(th => th.setAttribute('aria-sort', th.dataset.k === k ? (dir > 0 ? 'ascending' : 'descending') : 'none'));
+}
+
+// ---------- điều phối ----------
+let last = null;
+function render() {
+  const d = compute(); last = d;
+  drawKpis(d); drawMonth(d); drawDept(d); drawMix(d); drawTables(d); drawDetail(d);
+  const parts = [`Thời gian <b>${fmtDate(state.from)} – ${fmtDate(state.to)}</b>`];
+  if (state.region) parts.push(`Khu vực <b>${esc(state.region)}</b>`);
+  if (state.dept) parts.push(`Phòng <b>${esc(state.dept)}</b>`);
+  if (state.group) parts.push(`Nhóm <b>${esc(state.group)}</b>`);
+  $('activeNote').innerHTML = 'Đang xem: ' + parts.join(' · ') + ` · ${nf0.format(d.scope.length)} dòng trong phạm vi, ${nf0.format(d.total.n)} đơn tính KPI.`;
+  document.querySelectorAll('#monthSeg button').forEach(b => {
+    const m = b.dataset.m;
+    const on = m === 'all' ? state.from === '2026-07-01' && state.to === '2026-09-30' : state.from === m + '-01' && state.to === monthEnd(m);
+    b.setAttribute('aria-pressed', on);
+  });
+}
+function monthEnd(m) { const [y, mo] = m.split('-').map(Number); return m + '-' + String(new Date(y, mo, 0).getDate()).padStart(2, '0'); }
+
+document.querySelectorAll('#monthSeg button').forEach(b => b.addEventListener('click', () => {
+  const m = b.dataset.m;
+  state.from = m === 'all' ? '2026-07-01' : m + '-01';
+  state.to = m === 'all' ? '2026-09-30' : monthEnd(m);
+  $('fFrom').value = state.from; $('fTo').value = state.to; state.page = 0; render();
+}));
+['fFrom', 'fTo'].forEach(id => $(id).addEventListener('change', () => {
+  let f = $('fFrom').value || '2026-07-01', t = $('fTo').value || '2026-09-30';
+  if (f > t) [f, t] = [t, f];
+  state.from = f; state.to = t; $('fFrom').value = f; $('fTo').value = t; state.page = 0; render();
+}));
+[['fRegion', 'region'], ['fDept', 'dept'], ['fGroup', 'group'], ['fMode', 'mode']].forEach(([id, k]) => $(id).addEventListener('change', e => { state[k] = e.target.value; state.page = 0; render(); }));
+$('fSearch').addEventListener('input', e => { state.q = e.target.value; state.page = 0; drawDetail(last); });
+$('btnReset').addEventListener('click', () => {
+  Object.assign(state, { from: '2026-07-01', to: '2026-09-30', region: '', dept: '', group: '', q: '', page: 0 });
+  $('fFrom').value = state.from; $('fTo').value = state.to; $('fRegion').value = ''; $('fDept').value = ''; $('fGroup').value = ''; $('fSearch').value = '';
+  render();
+});
+document.querySelectorAll('#tbl th.sort').forEach(th => th.addEventListener('click', () => {
+  state.sortDir = state.sortK === th.dataset.k ? -state.sortDir : (th.classList.contains('n') ? -1 : 1);
+  state.sortK = th.dataset.k; state.page = 0; drawDetail(last);
+}));
+$('pgPrev').addEventListener('click', () => { state.page--; drawDetail(last); });
+$('pgNext').addEventListener('click', () => { state.page++; drawDetail(last); });
+let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { drawMonth(last); drawDept(last); drawMix(last); }, 120); });
+
+// ---------- tải dữ liệu trực tiếp từ Google Sheet (qua /api/data) ----------
+function drawMissing() {
+  const items = [];
+  ROWS.forEach(r => {
+    if (r.reason === 'Thiếu dữ liệu để tính DT') items.push(`${esc(r.id)}: thiếu ${[r.qty == null && 'Số lượng', r.price == null && 'Đơn giá', r.disc == null && 'Chiết khấu'].filter(Boolean).join(', ')}; bị loại, không suy đoán giá trị.`);
+    else if (r.reason === 'Doanh thu sai công thức') items.push(`${esc(r.id)}: doanh thu ghi ${vnd(r.rev)} VND, công thức cho ${vnd(r.expected)} VND; bị loại chờ xác minh.`);
+    else if (r.reason === 'Thiếu trạng thái') items.push(`${esc(r.id)}: thiếu trạng thái; bị loại.`);
+    else if (r.reason === 'Dòng trùng mã đơn') items.push(`${esc(r.id)}: trùng mã đơn; chỉ tính dòng đầu tiên.`);
+    if (/THIEU_MAKH/.test(r.flag)) items.push(`${esc(r.id)}: thiếu mã khách hàng; vẫn tính KPI nếu các số liệu khác đầy đủ.`);
+  });
+  $('missingList').innerHTML = items.length ? items.map(t => '<li>' + t + '</li>').join('') : '<li>Không có dòng thiếu hoặc sai trong dữ liệu hiện tại.</li>';
+}
+function banner(kind, html) {
+  const b = $('banner'); b.className = 'banner' + (kind ? ' show ' + kind : ''); b.innerHTML = html || '';
+}
+let loading = false;
+async function load() {
+  if (loading) return;
+  loading = true;
+  const btn = $('btnRefresh'); btn.disabled = true; btn.textContent = 'Đang tải…';
+  document.querySelector('main').classList.add('loading');
+  try {
+    const res = await fetch('/api/data?t=' + Date.now(), { cache: 'no-store' });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || ('Lỗi máy chủ ' + res.status));
+    if (!Array.isArray(body.rows) || !body.rows.length) throw new Error('Sheet không có dòng dữ liệu nào.');
+    ROWS = buildRows(body.rows);
+    const keepDept = state.dept;
+    fillSelect($('fDept'), 'Tất cả phòng', [...new Set(ROWS.map(r => r.dept).filter(Boolean))].sort());
+    if (keepDept && ROWS.some(r => r.dept === keepDept)) $('fDept').value = keepDept; else state.dept = '';
+    drawMissing();
+    render();
+    const t = new Date(body.fetchedAt || Date.now());
+    $('stamp').textContent = 'Cập nhật lúc ' + t.toLocaleTimeString('vi-VN') + ' ' + t.toLocaleDateString('vi-VN') + ' · ' + nf0.format(ROWS.length) + ' dòng từ sheet';
+    banner('', '');
+  } catch (e) {
+    banner('err', '<b>Không tải được dữ liệu mới.</b> ' + esc(e.message || e) + (ROWS.length ? ' Đang hiển thị dữ liệu của lần tải trước.' : ' Nhấn "Làm mới dữ liệu" để thử lại.'));
+    if (!ROWS.length) { $('stamp').textContent = 'Chưa có dữ liệu'; render(); }
+  } finally {
+    loading = false; btn.disabled = false; btn.textContent = '↻ Làm mới dữ liệu';
+    document.querySelector('main').classList.remove('loading');
+  }
+}
+$('btnRefresh').addEventListener('click', load);
+
+window.DASH = { get ROWS() { return ROWS; }, state, compute, render, load };
+load();
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+{
+  "name": "deli-sales-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Dashboard quản trị bán hàng Deli Q3/2026, đọc trực tiếp từ Google Sheet Demo9",
+  "engines": {
+    "node": ">=18"
+  }
+}
